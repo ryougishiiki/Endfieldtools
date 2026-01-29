@@ -1,0 +1,503 @@
+import React, { useMemo, useState } from "react";
+import { getSingle } from "../api.js";
+
+function TrashIcon({ className = "w-4 h-4" }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <path
+        d="M9 3h6m-9 4h12m-10 0v14a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V7M10 11v8M14 11v8"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function WeaponTile({ w, selected, onClick }) {
+  return (
+    <div
+      className={
+        "rounded-2xl border p-2 cursor-pointer select-none transition " +
+        (selected
+          ? "border-black/60 bg-zinc-100 dark:border-white/70 dark:bg-zinc-800"
+          : "border-zinc-200 bg-white hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:bg-zinc-800/60")
+      }
+      onClick={onClick}
+      title={w.name}
+    >
+      <div className="flex items-center gap-3">
+        <img
+          src={w.image || ""}
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+          className="w-14 h-14 rounded-xl object-cover bg-zinc-200 dark:bg-zinc-800 flex-shrink-0"
+        />
+        <div className="min-w-0">
+          <div className="font-bold truncate">{w.name}</div>
+          <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+            {w.rarity}★ · {w.type || "未知"}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function uniqKeepOrder(arr) {
+  const set = new Set();
+  const out = [];
+  for (const x of arr) {
+    if (set.has(x)) continue;
+    set.add(x);
+    out.push(x);
+  }
+  return out;
+}
+
+function getTraitName(traits, id) {
+  if (!id) return "";
+  return traits[id]?.name || id;
+}
+
+function WeaponCard({ w, traits, mainWeapon, otherMode }) {
+  // 模板；星级|基础属性|附加/技能
+  const baseName = getTraitName(traits, w.traits.cat1);
+
+  let otherName = "";
+  if (mainWeapon && otherMode === "cat2") {
+    otherName = w.traits.cat2 === mainWeapon.traits.cat2 ? getTraitName(traits, mainWeapon.traits.cat2) : "";
+  } else if (mainWeapon && otherMode === "cat3") {
+    otherName = w.traits.cat3 === mainWeapon.traits.cat3 ? getTraitName(traits, mainWeapon.traits.cat3) : "";
+  } else if (mainWeapon && otherMode === "none") {
+    // 优先级筛选
+    const m2 = w.traits.cat2 === mainWeapon.traits.cat2 ? getTraitName(traits, mainWeapon.traits.cat2) : "";
+    const m3 = w.traits.cat3 === mainWeapon.traits.cat3 ? getTraitName(traits, mainWeapon.traits.cat3) : "";
+    otherName = m2 && m3 ? `${m2}/${m3}` : m2 || m3 || "";
+  }
+
+  // 模板；6★|力量|攻击提升
+  const parts = [`${w.rarity}★`, baseName, otherName].filter((x) => x !== undefined);
+  const smallText = parts.join("|");
+
+  return (
+    <div className="card p-3 flex items-center gap-3">
+      <img
+        src={w.image || ""}
+        onError={(e) => {
+          e.currentTarget.style.display = "none";
+        }}
+        className="w-12 h-12 rounded-xl object-cover bg-zinc-200 dark:bg-zinc-800"
+      />
+      <div className="min-w-0">
+        <div className="font-bold truncate">{w.name}</div>
+        <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+          {smallText}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Single({ data }) {
+  const weapons = data.weapons;
+  const traits = data.traits;
+  const locations = data.locations;
+
+  // 搜索 星级 类型筛选
+  const [q, setQ] = useState("");
+  const [rarityFilter, setRarityFilter] = useState("all"); // all / 4 / 5 / 6
+  const [typeFilter, setTypeFilter] = useState("all");
+
+  const [selected, setSelected] = useState(Object.keys(weapons)[0] || "");
+  const [loading, setLoading] = useState(false);
+  const [resp, setResp] = useState(null);
+
+  // 基础属性筛选
+  const [cat1Selected, setCat1Selected] = useState([]);
+
+  // 其余Tag
+  // none | cat2 | cat3
+  const [otherMode, setOtherMode] = useState("none");
+
+  const selectedWeapon = weapons[selected];
+  const selectedCat1 = selectedWeapon?.traits?.cat1;
+  const selectedCat2 = selectedWeapon?.traits?.cat2;
+  const selectedCat3 = selectedWeapon?.traits?.cat3;
+
+  const typeOptions = useMemo(() => {
+    const set = new Set(Object.values(weapons).map((w) => w.type || "未知"));
+    return ["all", ...Array.from(set).sort()];
+  }, [weapons]);
+
+  const pool = useMemo(() => {
+    const arr = Object.values(weapons).sort(
+      (a, b) => b.rarity - a.rarity || a.name.localeCompare(b.name)
+    );
+    const key = q.trim().toLowerCase();
+
+    return arr.filter((w) => {
+      if (key && !w.name.toLowerCase().includes(key)) return false;
+      if (rarityFilter !== "all" && String(w.rarity) !== rarityFilter) return false;
+      if (typeFilter !== "all" && (w.type || "未知") !== typeFilter) return false;
+      return true;
+    });
+  }, [weapons, q, rarityFilter, typeFilter]);
+
+  function pickWeapon(id) {
+    setSelected(id);
+    setResp(null);
+    const w = weapons[id];
+    const forced = w?.traits?.cat1 ? [w.traits.cat1] : [];
+    setCat1Selected(forced);
+    setOtherMode("none");
+  }
+
+  async function run() {
+    setLoading(true);
+    const forced = selectedCat1 ? [selectedCat1] : [];
+    setCat1Selected(forced);
+    setOtherMode("none");
+    const r = await getSingle(selected);
+    setResp(r);
+    setLoading(false);
+  }
+
+  // 顶置当前武器
+  const filterChips = useMemo(() => {
+    if (!resp || !resp.results) return [];
+    const set = new Set();
+    resp.results.forEach((x) => x.cat1_trait_ids?.forEach((id) => set.add(id)));
+    const arr = Array.from(set).map((id) => ({
+      id,
+      name: traits[id]?.name || id,
+      color: traits[id]?.color || "#999",
+    }));
+    if (selectedCat1) {
+      arr.sort((a, b) => {
+        if (a.id === selectedCat1) return -1;
+        if (b.id === selectedCat1) return 1;
+        return a.name.localeCompare(b.name);
+      });
+    } else {
+      arr.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return arr;
+  }, [resp, traits, selectedCat1]);
+
+  function toggleCat1(id) {
+    setCat1Selected((prev) => {
+      // 属性不能取消
+      if (id === selectedCat1) return prev.includes(id) ? prev : [id, ...prev];
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      return [...prev, id];
+    });
+  }
+
+  function clearCat1() {
+    // 清空但保留cat1
+    setCat1Selected(selectedCat1 ? [selectedCat1] : []);
+  }
+
+  // 其余tag
+  const otherTagLabel = useMemo(() => {
+    const cat2Name = selectedCat2 ? traits[selectedCat2]?.name || selectedCat2 : "（无）";
+    const cat3Name = selectedCat3 ? traits[selectedCat3]?.name || selectedCat3 : "（无）";
+    return { cat2Name, cat3Name };
+  }, [traits, selectedCat2, selectedCat3]);
+
+  function toggleOtherMode(next) {
+    setOtherMode((prev) => (prev === next ? "none" : next));
+  }
+
+  function clearOtherMode() {
+    setOtherMode("none");
+  }
+
+  // 基础/基础/... | 技能或附加或（未选）
+  const strategyText = useMemo(() => {
+    const baseNames = uniqKeepOrder(
+      cat1Selected
+        .filter(Boolean)
+        .map((id) => traits[id]?.name || id)
+    );
+
+    // 强制顶置cat1
+    const forcedName = selectedCat1 ? traits[selectedCat1]?.name || selectedCat1 : null;
+    const bases =
+      forcedName && baseNames.includes(forcedName)
+        ? [forcedName, ...baseNames.filter((x) => x !== forcedName)]
+        : forcedName
+        ? [forcedName, ...baseNames]
+        : baseNames;
+
+    const basePart = bases.length > 0 ? bases.join("/") : "（未选）";
+
+    let otherPart = "（未选）";
+    if (otherMode === "cat2") otherPart = `附加：${otherTagLabel.cat2Name}`;
+    else if (otherMode === "cat3") otherPart = `技能：${otherTagLabel.cat3Name}`;
+
+    return `当前策略：${basePart} | ${otherPart}`;
+  }, [cat1Selected, traits, selectedCat1, otherMode, otherTagLabel]);
+
+  const view = useMemo(() => {
+    if (!resp?.results) return [];
+    const selSet = new Set(cat1Selected);
+
+    const blocks = resp.results
+      .map((r) => {
+        const locName = locations[r.loc_id]?.name || r.loc_id;
+        const byR = r.by_rarity || {};
+
+        const pack = (rarity) =>
+          (byR[rarity] || [])
+            .map((id) => weapons[id])
+            .filter(Boolean)
+            // 排除主武器本身
+            .filter((w) => w.id !== selected)
+            .filter((w) => {
+              // 基础属性筛选
+              if (selSet.size > 0 && !selSet.has(w.traits.cat1)) return false;
+              if (otherMode === "cat2") {
+                if (!selectedCat2) return false;
+                return w.traits.cat2 === selectedCat2;
+              }
+              if (otherMode === "cat3") {
+                if (!selectedCat3) return false;
+                return w.traits.cat3 === selectedCat3;
+              }
+              return true;
+            })
+            .sort((a, b) => {
+              const an = traits[a.traits.cat1]?.name || a.traits.cat1;
+              const bn = traits[b.traits.cat1]?.name || b.traits.cat1;
+              return an.localeCompare(bn) || a.name.localeCompare(b.name);
+            });
+
+        const r6 = pack(6);
+        const r5 = pack(5);
+        const r4 = pack(4);
+
+        return { loc_id: r.loc_id, locName, r6, r5, r4 };
+      })
+      .filter((b) => b.r6.length + b.r5.length + b.r4.length > 0);
+
+    return blocks;
+  }, [resp, locations, weapons, cat1Selected, otherMode, selectedCat2, selectedCat3, traits, selected]);
+
+  return (
+    <div className="grid grid-cols-12 gap-4">
+      {/* 左侧武器选择筛选 */}
+      <div className="col-span-4 card p-4">
+        <div className="font-black mb-3">选择武器（图标）</div>
+
+        <div className="grid grid-cols-12 gap-2">
+          <div className="col-span-12">
+            <input
+              className="input"
+              placeholder="搜索武器…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </div>
+
+          <div className="col-span-6">
+            <select
+              className="input"
+              value={rarityFilter}
+              onChange={(e) => setRarityFilter(e.target.value)}
+              title="星级筛选"
+            >
+              <option value="all">全部星级</option>
+              <option value="4">4★</option>
+              <option value="5">5★</option>
+              <option value="6">6★</option>
+            </select>
+          </div>
+
+          <div className="col-span-6">
+            <select
+              className="input"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              title="类型筛选"
+            >
+              <option value="all">全部类型</option>
+              {typeOptions
+                .filter((x) => x !== "all")
+                .map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-3 max-h-[360px] overflow-auto pr-1">
+          {pool.map((w) => (
+            <WeaponTile
+              key={w.id}
+              w={w}
+              selected={selected === w.id}
+              onClick={() => pickWeapon(w.id)}
+            />
+          ))}
+        </div>
+
+        <button className="btn w-full mt-4" onClick={run} disabled={loading || !selected}>
+          {loading ? "计算中…" : "计算"}
+        </button>
+
+        <div className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
+          点击计算后，系统将列出该武器基质可能出产的地区以及可能出现的副产基质
+        </div>
+
+        {/* 筛选区 */}
+        {resp && filterChips.length > 0 && (
+          <>
+            {/* 基础属性筛选 */}
+            <div className="mt-5 flex items-center justify-between">
+              <div className="font-bold">基础属性筛选</div>
+              <button className="btn2 px-3 py-2" onClick={clearCat1} title="清空">
+                <TrashIcon />
+              </button>
+            </div>
+
+            <div className="mt-2 flex flex-wrap gap-2">
+              {filterChips.map((c) => {
+                const active = cat1Selected.includes(c.id);
+                const isPinned = c.id === selectedCat1;
+                return (
+                  <div
+                    key={c.id}
+                    className={
+                      "chip " +
+                      (active ? "border-black/60 dark:border-white/60" : "") +
+                      (isPinned ? " ring-1 ring-black/10 dark:ring-white/10" : "")
+                    }
+                    onClick={() => toggleCat1(c.id)}
+                    title={c.id}
+                  >
+                    <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />
+                    <span>{c.name}</span>
+                    {isPinned ? (
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">（本武器）</span>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+              当前武器基础属性：{getTraitName(traits, selectedCat1)}
+              {cat1Selected.length > 0 ? `｜已选：${cat1Selected.length}（不选则默认只有自带tag）` : ""}
+            </div>
+
+            {/* 其余二选一 */}
+            <div className="mt-5 flex items-center justify-between">
+              <div className="font-bold">其余 Tag（只能二选一）</div>
+              <button className="btn2 px-3 py-2" onClick={clearOtherMode} title="清空">
+                <TrashIcon />
+              </button>
+            </div>
+
+            <div className="mt-2 flex flex-wrap gap-2">
+              <div
+                className={
+                  "chip " +
+                  (otherMode === "cat2" ? "border-black/60 dark:border-white/60" : "")
+                }
+                onClick={() => toggleOtherMode("cat2")}
+                title={selectedCat2 || ""}
+              >
+                <span className="w-2 h-2 rounded-full" style={{ background: "#00C2A8" }} />
+                <span>附加：{otherTagLabel.cat2Name}</span>
+              </div>
+
+              <div
+                className={
+                  "chip " +
+                  (otherMode === "cat3" ? "border-black/60 dark:border-white/60" : "")
+                }
+                onClick={() => toggleOtherMode("cat3")}
+                title={selectedCat3 || ""}
+              >
+                <span className="w-2 h-2 rounded-full" style={{ background: "#B088F9" }} />
+                <span>技能：{otherTagLabel.cat3Name}</span>
+              </div>
+            </div>
+
+            <div className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+              当前筛选：
+              {otherMode === "none"
+                ? "（无）"
+                : otherMode === "cat2"
+                ? `附加=${otherTagLabel.cat2Name}`
+                : `技能=${otherTagLabel.cat3Name}`}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* 右侧：结果 */}
+      <div className="col-span-8 space-y-4">
+        {!resp && (
+          <div className="card p-6 text-zinc-500 dark:text-zinc-300">
+            选择武器后点击“计算”。
+          </div>
+        )}
+
+        {resp && view.length === 0 && (
+          <div className="card p-6 text-zinc-500 dark:text-zinc-300">
+            没有可行地点（请检查 locations.json 的词条池是否覆盖该武器的 cat1/cat2/cat3，或筛选过严）。
+          </div>
+        )}
+
+        {view.map((block) => (
+          <div key={block.loc_id} className="card p-4">
+            <div className="flex items-center justify-between mb-3 gap-4">
+              <div className="min-w-0">
+                <div className="font-black text-lg truncate">
+                  {block.locName}
+                  <span className="text-sm font-normal text-zinc-500 dark:text-zinc-400">
+                    {" "}
+                    | {strategyText}
+                  </span>
+                </div>
+              </div>
+              <div className="text-sm text-zinc-500 dark:text-zinc-400 flex-shrink-0">
+                按地区分类，按星级分类
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <RarityCol title="6★" items={block.r6} traits={traits} mainWeapon={selectedWeapon} otherMode={otherMode} />
+              <RarityCol title="5★" items={block.r5} traits={traits} mainWeapon={selectedWeapon} otherMode={otherMode} />
+              <RarityCol title="4★" items={block.r4} traits={traits} mainWeapon={selectedWeapon} otherMode={otherMode} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RarityCol({ title, items, traits, mainWeapon, otherMode }) {
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white/40 p-3 dark:border-zinc-800 dark:bg-zinc-950/30">
+      <div className="font-bold mb-2">{title}</div>
+      {items.length === 0 ? (
+        <div className="text-sm text-zinc-400">空</div>
+      ) : (
+        <div className="space-y-2">
+          {items.map((w) => (
+            <WeaponCard key={w.id} w={w} traits={traits} mainWeapon={mainWeapon} otherMode={otherMode} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,53 @@
+{
+  "locations": [
+    {
+      "id": "loc_01",
+      "name": "武陵地区：武陵城",
+      "pools": {
+        "cat1": [{"id": "c1_a"}, {"id": "c1_b"}, {"id": "c1_c"}, {"id": "c1_d"}, {"id": "c1_e"}],
+        "cat2": [{"id": "c2_atk"}, {"id": "c2_hp"}, {"id": "c2_em"}, {"id": "c2_cold"}, {"id": "c2_crit"}, {"id": "c2_fin"}, {"id": "c2_spell"}, {"id": "c2_heal"}],
+        "cat3": [{"id": "c3_strike"}, {"id": "c3_break"}, {"id": "c3_brutal"}, {"id": "c3_med"}, {"id": "c3_slice"}, {"id": "c3_burst"}, {"id": "c3_nightveil"}, {"id": "c3_flow"}]
+      }
+    },
+
+    {
+      "id": "loc_03",
+      "name": "四号谷地：枢纽区",
+      "pools": {
+        "cat1": [{"id": "c1_a"}, {"id": "c1_b"}, {"id": "c1_c"}, {"id": "c1_d"}, {"id": "c1_e"}],
+        "cat2": [{"id": "c2_atk"}, {"id": "c2_heat"}, {"id": "c2_em"}, {"id": "c2_cold"}, {"id": "c2_nature"}, {"id": "c2_src"}, {"id": "c2_fin"}, {"id": "c2_spell"}],
+        "cat3": [{"id": "c3_strike"}, {"id": "c3_press"}, {"id": "c3_chase"}, {"id": "c3_break"}, {"id": "c3_trick"}, {"id": "c3_burst"}, {"id": "c3_flow"}, {"id": "c3_eff"}]
+      }
+    },
+
+    {
+      "id": "loc_04",
+      "name": "四号谷地：源石研究园",
+      "pools": {
+        "cat1": [{"id": "c1_a"}, {"id": "c1_b"}, {"id": "c1_c"}, {"id": "c1_d"}, {"id": "c1_e"}],
+        "cat2": [{"id": "c2_atk"}, {"id": "c2_phy"}, {"id": "c2_em"}, {"id": "c2_cold"}, {"id": "c2_nature"}, {"id": "c2_crit"}, {"id": "c2_fin"}, {"id": "c2_spell"}],
+        "cat3": [{"id": "c3_press"}, {"id": "c3_chase"}, {"id": "c3_uplift"}, {"id": "c3_trick"}, {"id": "c3_enchant"}, {"id": "c3_med"}, {"id": "c3_slice"}, {"id": "c3_eff"}]
+      }
+    },
+
+    {
+      "id": "loc_05",
+      "name": "四号谷地：矿脉源区",
+      "pools": {
+        "cat1": [{"id": "c1_a"}, {"id": "c1_b"}, {"id": "c1_c"}, {"id": "c1_d"}, {"id": "c1_e"}],
+        "cat2": [{"id": "c2_hp"}, {"id": "c2_phy"}, {"id": "c2_heat"}, {"id": "c2_cold"}, {"id": "c2_nature"}, {"id": "c2_crit"}, {"id": "c2_src"}, {"id": "c2_heal"}],
+        "cat3": [{"id": "c3_strike"}, {"id": "c3_press"}, {"id": "c3_trick"}, {"id": "c3_brutal"}, {"id": "c3_enchant"}, {"id": "c3_burst"}, {"id": "c3_nightveil"}, {"id": "c3_eff"}]
+      }
+    },
+
+    {
+      "id": "loc_06",
+      "name": "四号谷地：供能高地",
+      "pools": {
+        "cat1": [{"id": "c1_a"}, {"id": "c1_b"}, {"id": "c1_c"}, {"id": "c1_d"}, {"id": "c1_e"}],
+        "cat2": [{"id": "c2_atk"}, {"id": "c2_hp"}, {"id": "c2_phy"}, {"id": "c2_heat"}, {"id": "c2_nature"}, {"id": "c2_crit"}, {"id": "c2_src"}, {"id": "c2_heal"}],
+        "cat3": [{"id": "c3_chase"}, {"id": "c3_break"}, {"id": "c3_uplift"}, {"id": "c3_brutal"}, {"id": "c3_enchant"}, {"id": "c3_med"}, {"id": "c3_slice"}, {"id": "c3_flow"}]
+      }
+    }
+  ]
+}

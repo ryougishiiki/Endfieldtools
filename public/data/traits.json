@@ -1,0 +1,54 @@
+{
+  "categories": {
+    "cat1": {
+      "name": "基础属性",
+      "fixed_pick_from": 5,
+      "items": [
+        { "id": "c1_a", "name": "敏捷", "color": "#FF6B6B" },
+        { "id": "c1_b", "name": "力量", "color": "#FFD93D" },
+        { "id": "c1_c", "name": "意志", "color": "#6BCB77" },
+        { "id": "c1_d", "name": "智识", "color": "#4D96FF" },
+        { "id": "c1_e", "name": "主能力", "color": "#B088F9" }
+      ]
+    },
+
+    "cat2": {
+      "name": "附加属性",
+      "items": [
+        { "id": "c2_atk", "name": "攻击", "color": "#00C2A8" },
+        { "id": "c2_hp", "name": "生命", "color": "#845EC2" },
+        { "id": "c2_phy", "name": "物理", "color": "#B0A8B9" },
+        { "id": "c2_fin", "name": "终结技", "color": "#FF8066" },
+        { "id": "c2_cold", "name": "寒冷", "color": "#4D96FF" },
+        { "id": "c2_heat", "name": "灼热", "color": "#FF6F61" },
+        { "id": "c2_em", "name": "电磁", "color": "#FFC75F" },
+        { "id": "c2_crit", "name": "暴击率", "color": "#F9F871" },
+        { "id": "c2_src", "name": "源石", "color": "#00D2FC" },
+        { "id": "c2_spell", "name": "法术", "color": "#9B89B3" },
+        { "id": "c2_heal", "name": "治疗", "color": "#6BCB77" },
+        { "id": "c2_nature", "name": "自然", "color": "#2ECC71" }
+      ]
+    },
+
+    "cat3": {
+      "name": "技能属性",
+      "items": [
+        { "id": "c3_strike", "name": "强攻", "color": "#F9F871" },
+        { "id": "c3_break", "name": "粉碎", "color": "#FF9671" },
+        { "id": "c3_brutal", "name": "残暴", "color": "#00D2FC" },
+        { "id": "c3_slice", "name": "切骨", "color": "#C34A36" },
+        { "id": "c3_burst", "name": "迸发", "color": "#FF6F61" },
+        { "id": "c3_night", "name": "夜幕", "color": "#3C3C3C" },
+        { "id": "c3_nightveil", "name": "夜幂", "color": "#2C2C54" },
+        { "id": "c3_trick", "name": "巧技", "color": "#FFD93D" },
+        { "id": "c3_uplift", "name": "昂扬", "color": "#6BCB77" },
+        { "id": "c3_press", "name": "压制", "color": "#845EC2" },
+        { "id": "c3_enchant", "name": "附术", "color": "#9B89B3" },
+        { "id": "c3_flow", "name": "流转", "color": "#00C2A8" },
+        { "id": "c3_med", "name": "医疗", "color": "#2ECC71" },
+        { "id": "c3_eff", "name": "效益", "color": "#B0A8B9" },
+        { "id": "c3_chase", "name": "追袭", "color": "#FF8066" }
+      ]
+    }
+  }
+}
