@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { getSingle } from "../api.js";
+import { withBasePath } from "../utils/paths.js";
 
 function TrashIcon({ className = "w-4 h-4" }) {
   return (
@@ -19,7 +20,7 @@ function WeaponTile({ w, selected, onClick }) {
   return (
     <div
       className={
-        "rounded-2xl border p-2 cursor-pointer select-none transition " +
+        "rounded-2xl border p-2 cursor-pointer select-none transition group " +
         (selected
           ? "border-black/60 bg-zinc-100 dark:border-white/70 dark:bg-zinc-800"
           : "border-zinc-200 bg-white hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:bg-zinc-800/60")
@@ -29,11 +30,12 @@ function WeaponTile({ w, selected, onClick }) {
     >
       <div className="flex items-center gap-3">
         <img
-          src={w.image || ""}
+          src={withBasePath(w.image)}
           onError={(e) => {
             e.currentTarget.style.display = "none";
           }}
-          className="w-14 h-14 rounded-xl object-cover bg-zinc-200 dark:bg-zinc-800 flex-shrink-0"
+          className="w-14 h-14 rounded-xl object-cover bg-zinc-200 dark:bg-zinc-800 flex-shrink-0 group-hover:scale-[1.02] transition"
+          loading="lazy"
         />
         <div className="min-w-0">
           <div className="font-bold truncate">{w.name}</div>
@@ -63,7 +65,6 @@ function getTraitName(traits, id) {
 }
 
 function WeaponCard({ w, traits, mainWeapon, otherMode }) {
-  // 模板；星级|基础属性|附加/技能
   const baseName = getTraitName(traits, w.traits.cat1);
 
   let otherName = "";
@@ -72,24 +73,23 @@ function WeaponCard({ w, traits, mainWeapon, otherMode }) {
   } else if (mainWeapon && otherMode === "cat3") {
     otherName = w.traits.cat3 === mainWeapon.traits.cat3 ? getTraitName(traits, mainWeapon.traits.cat3) : "";
   } else if (mainWeapon && otherMode === "none") {
-    // 优先级筛选
     const m2 = w.traits.cat2 === mainWeapon.traits.cat2 ? getTraitName(traits, mainWeapon.traits.cat2) : "";
     const m3 = w.traits.cat3 === mainWeapon.traits.cat3 ? getTraitName(traits, mainWeapon.traits.cat3) : "";
     otherName = m2 && m3 ? `${m2}/${m3}` : m2 || m3 || "";
   }
 
-  // 模板；6★|力量|攻击提升
   const parts = [`${w.rarity}★`, baseName, otherName].filter((x) => x !== undefined);
   const smallText = parts.join("|");
 
   return (
     <div className="card p-3 flex items-center gap-3">
       <img
-        src={w.image || ""}
+        src={withBasePath(w.image)}
         onError={(e) => {
           e.currentTarget.style.display = "none";
         }}
         className="w-12 h-12 rounded-xl object-cover bg-zinc-200 dark:bg-zinc-800"
+        loading="lazy"
       />
       <div className="min-w-0">
         <div className="font-bold truncate">{w.name}</div>
@@ -106,20 +106,16 @@ export default function Single({ data }) {
   const traits = data.traits;
   const locations = data.locations;
 
-  // 搜索 星级 类型筛选
   const [q, setQ] = useState("");
-  const [rarityFilter, setRarityFilter] = useState("all"); // all / 4 / 5 / 6
+  const [rarityFilter, setRarityFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
 
   const [selected, setSelected] = useState(Object.keys(weapons)[0] || "");
   const [loading, setLoading] = useState(false);
   const [resp, setResp] = useState(null);
 
-  // 基础属性筛选
   const [cat1Selected, setCat1Selected] = useState([]);
 
-  // 其余Tag
-  // none | cat2 | cat3
   const [otherMode, setOtherMode] = useState("none");
 
   const selectedWeapon = weapons[selected];
@@ -165,7 +161,6 @@ export default function Single({ data }) {
     setLoading(false);
   }
 
-  // 顶置当前武器
   const filterChips = useMemo(() => {
     if (!resp || !resp.results) return [];
     const set = new Set();
@@ -189,7 +184,6 @@ export default function Single({ data }) {
 
   function toggleCat1(id) {
     setCat1Selected((prev) => {
-      // 属性不能取消
       if (id === selectedCat1) return prev.includes(id) ? prev : [id, ...prev];
       if (prev.includes(id)) return prev.filter((x) => x !== id);
       return [...prev, id];
@@ -197,11 +191,9 @@ export default function Single({ data }) {
   }
 
   function clearCat1() {
-    // 清空但保留cat1
     setCat1Selected(selectedCat1 ? [selectedCat1] : []);
   }
 
-  // 其余tag
   const otherTagLabel = useMemo(() => {
     const cat2Name = selectedCat2 ? traits[selectedCat2]?.name || selectedCat2 : "（无）";
     const cat3Name = selectedCat3 ? traits[selectedCat3]?.name || selectedCat3 : "（无）";
@@ -216,7 +208,6 @@ export default function Single({ data }) {
     setOtherMode("none");
   }
 
-  // 基础/基础/... | 技能或附加或（未选）
   const strategyText = useMemo(() => {
     const baseNames = uniqKeepOrder(
       cat1Selected
@@ -224,7 +215,6 @@ export default function Single({ data }) {
         .map((id) => traits[id]?.name || id)
     );
 
-    // 强制顶置cat1
     const forcedName = selectedCat1 ? traits[selectedCat1]?.name || selectedCat1 : null;
     const bases =
       forcedName && baseNames.includes(forcedName)
@@ -255,10 +245,8 @@ export default function Single({ data }) {
           (byR[rarity] || [])
             .map((id) => weapons[id])
             .filter(Boolean)
-            // 排除主武器本身
             .filter((w) => w.id !== selected)
             .filter((w) => {
-              // 基础属性筛选
               if (selSet.size > 0 && !selSet.has(w.traits.cat1)) return false;
               if (otherMode === "cat2") {
                 if (!selectedCat2) return false;
@@ -288,10 +276,14 @@ export default function Single({ data }) {
   }, [resp, locations, weapons, cat1Selected, otherMode, selectedCat2, selectedCat3, traits, selected]);
 
   return (
-    <div className="grid grid-cols-12 gap-4">
-      {/* 左侧武器选择筛选 */}
-      <div className="col-span-4 card p-4">
-        <div className="font-black mb-3">选择武器（图标）</div>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="lg:col-span-4 card p-5 space-y-4">
+        <div>
+          <div className="text-lg font-black">选择武器</div>
+          <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+            支持搜索、星级与类型筛选。
+          </div>
+        </div>
 
         <div className="grid grid-cols-12 gap-2">
           <div className="col-span-12">
@@ -336,7 +328,7 @@ export default function Single({ data }) {
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-3 max-h-[360px] overflow-auto pr-1">
+        <div className="grid grid-cols-2 gap-3 max-h-[360px] overflow-auto pr-1">
           {pool.map((w) => (
             <WeaponTile
               key={w.id}
@@ -347,26 +339,24 @@ export default function Single({ data }) {
           ))}
         </div>
 
-        <button className="btn w-full mt-4" onClick={run} disabled={loading || !selected}>
+        <button className="btn w-full" onClick={run} disabled={loading || !selected}>
           {loading ? "计算中…" : "计算"}
         </button>
 
-        <div className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
+        <div className="text-sm text-zinc-500 dark:text-zinc-400">
           点击计算后，系统将列出该武器基质可能出产的地区以及可能出现的副产基质
         </div>
 
-        {/* 筛选区 */}
         {resp && filterChips.length > 0 && (
           <>
-            {/* 基础属性筛选 */}
-            <div className="mt-5 flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <div className="font-bold">基础属性筛选</div>
               <button className="btn2 px-3 py-2" onClick={clearCat1} title="清空">
                 <TrashIcon />
               </button>
             </div>
 
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
               {filterChips.map((c) => {
                 const active = cat1Selected.includes(c.id);
                 const isPinned = c.id === selectedCat1;
@@ -396,15 +386,14 @@ export default function Single({ data }) {
               {cat1Selected.length > 0 ? `｜已选：${cat1Selected.length}（不选则默认只有自带tag）` : ""}
             </div>
 
-            {/* 其余二选一 */}
-            <div className="mt-5 flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <div className="font-bold">其余 Tag（只能二选一）</div>
               <button className="btn2 px-3 py-2" onClick={clearOtherMode} title="清空">
                 <TrashIcon />
               </button>
             </div>
 
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
               <div
                 className={
                   "chip " +
@@ -442,8 +431,7 @@ export default function Single({ data }) {
         )}
       </div>
 
-      {/* 右侧：结果 */}
-      <div className="col-span-8 space-y-4">
+      <div className="lg:col-span-8 space-y-4">
         {!resp && (
           <div className="card p-6 text-zinc-500 dark:text-zinc-300">
             选择武器后点击“计算”。
@@ -487,8 +475,8 @@ export default function Single({ data }) {
 
 function RarityCol({ title, items, traits, mainWeapon, otherMode }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white/40 p-3 dark:border-zinc-800 dark:bg-zinc-950/30">
-      <div className="font-bold mb-2">{title}</div>
+    <div className="rounded-2xl border border-zinc-200/80 bg-white/60 p-3 dark:border-zinc-800/80 dark:bg-zinc-950/30">
+      <div className="font-bold mb-2 text-sm text-zinc-600 dark:text-zinc-300">{title}</div>
       {items.length === 0 ? (
         <div className="text-sm text-zinc-400">空</div>
       ) : (

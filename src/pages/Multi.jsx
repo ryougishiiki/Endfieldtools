@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { getMulti } from "../api.js";
+import { withBasePath } from "../utils/paths.js";
 
 function TrashIcon({ className = "w-4 h-4" }) {
   return (
@@ -19,7 +20,7 @@ function WeaponTile({ w, selected, onClick }) {
   return (
     <div
       className={
-        "rounded-2xl border p-2 cursor-pointer select-none transition " +
+        "rounded-2xl border p-2 cursor-pointer select-none transition group " +
         (selected
           ? "border-black/60 bg-zinc-100 dark:border-white/70 dark:bg-zinc-800"
           : "border-zinc-200 bg-white hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:bg-zinc-800/60")
@@ -29,11 +30,12 @@ function WeaponTile({ w, selected, onClick }) {
     >
       <div className="flex items-center gap-3">
         <img
-          src={w.image || ""}
+          src={withBasePath(w.image)}
           onError={(e) => {
             e.currentTarget.style.display = "none";
           }}
-          className="w-14 h-14 rounded-xl object-cover bg-zinc-200 dark:bg-zinc-800 flex-shrink-0"
+          className="w-14 h-14 rounded-xl object-cover bg-zinc-200 dark:bg-zinc-800 flex-shrink-0 group-hover:scale-[1.02] transition"
+          loading="lazy"
         />
         <div className="min-w-0">
           <div className="font-bold truncate">{w.name}</div>
@@ -50,11 +52,12 @@ function SelectedChip({ w, onRemove }) {
   return (
     <div className="chip flex items-center gap-2">
       <img
-        src={w.image || ""}
+        src={withBasePath(w.image)}
         onError={(e) => {
           e.currentTarget.style.display = "none";
         }}
         className="w-6 h-6 rounded-lg object-cover bg-zinc-200 dark:bg-zinc-800"
+        loading="lazy"
       />
       <span className="font-bold">{w.name}</span>
       <span className="text-xs text-zinc-500 dark:text-zinc-400">{w.rarity}★</span>
@@ -81,8 +84,7 @@ export default function Multi({ data, gotoSingle }) {
   const [resp, setResp] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // 两个筛选器
-  const [rarityFilter, setRarityFilter] = useState("all"); // all / 4 / 5 / 6
+  const [rarityFilter, setRarityFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
 
   const typeOptions = useMemo(() => {
@@ -90,7 +92,6 @@ export default function Multi({ data, gotoSingle }) {
     return ["all", ...Array.from(set).sort()];
   }, [weapons]);
 
-  // 补一点修复，使筛选保留结果
   const pickedWeapons = useMemo(() => {
     return picked.map((id) => weapons[id]).filter(Boolean);
   }, [picked, weapons]);
@@ -162,23 +163,25 @@ export default function Multi({ data, gotoSingle }) {
   }, [resp, locations, traits, categories]);
 
   return (
-    <div className="grid grid-cols-12 gap-4">
-      <div className="col-span-4 card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="font-black">选择武器（图标）</div>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="lg:col-span-4 card p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-lg font-black">选择武器</div>
+            <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+              多选后生成共同刷取建议。
+            </div>
+          </div>
           <button className="btn2 px-3 py-2" onClick={clearPicked} title="清空已选">
             <TrashIcon />
           </button>
         </div>
 
-        {/* 保留展示区显示(*≧︶≦))(￣▽￣* )ゞ */}
         {pickedWeapons.length > 0 && (
-          <div className="mb-3">
+          <div>
             <div className="text-sm font-bold mb-2">
               已选（{pickedWeapons.length}）
-              <span className="text-xs text-zinc-500 dark:text-zinc-400 ml-2">
-                这里是参与计算的武器(ง •_•)ง
-              </span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400 ml-2">参与计算</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {pickedWeapons.map((w) => (
@@ -231,7 +234,7 @@ export default function Multi({ data, gotoSingle }) {
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-3 max-h-[560px] overflow-auto pr-1">
+        <div className="grid grid-cols-2 gap-3 max-h-[560px] overflow-auto pr-1">
           {pool.map((w) => (
             <WeaponTile
               key={w.id}
@@ -242,20 +245,16 @@ export default function Multi({ data, gotoSingle }) {
           ))}
         </div>
 
-        <button
-          className="btn w-full mt-4"
-          onClick={run}
-          disabled={loading || picked.length === 0}
-        >
+        <button className="btn w-full" onClick={run} disabled={loading || picked.length === 0}>
           {loading ? "检索中…" : "搜索（查共同刷取）"}
         </button>
 
-        <div className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+        <div className="text-xs text-zinc-500 dark:text-zinc-400">
           右侧只展示“至少满足 2 把”的共同结果；满足 1 把的将不显示。
         </div>
       </div>
 
-      <div className="col-span-8 space-y-4">
+      <div className="lg:col-span-8 space-y-4">
         {!resp && (
           <div className="card p-6 text-zinc-500 dark:text-zinc-300">
             左侧选中多个武器后点“搜索”。
@@ -302,11 +301,12 @@ export default function Multi({ data, gotoSingle }) {
                   >
                     <div className="flex items-center gap-3">
                       <img
-                        src={w.image || ""}
+                        src={withBasePath(w.image)}
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
                         }}
                         className="w-12 h-12 rounded-xl object-cover bg-zinc-200 dark:bg-zinc-800 flex-shrink-0"
+                        loading="lazy"
                       />
                       <div className="min-w-0">
                         <div className="font-bold truncate">{w.name}</div>

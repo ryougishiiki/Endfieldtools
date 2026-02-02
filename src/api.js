@@ -1,15 +1,9 @@
 // frontend/src/api.js
 import { computeSingle, computeMulti } from "./core/logic.js";
-
-// 兼容 GitHub Pages 子路径：/Endfieldtools/
-function withBase(path) {
-  const base = import.meta.env.BASE_URL || "/";
-  const clean = path.startsWith("/") ? path.slice(1) : path;
-  return new URL(base + clean, window.location.origin).toString();
-}
+import { withBasePath } from "./utils/paths.js";
 
 async function fetchJson(path) {
-  const r = await fetch(withBase(path), { cache: "no-store" });
+  const r = await fetch(withBasePath(path), { cache: "no-store" });
   if (!r.ok) throw new Error(`Fetch failed ${r.status}: ${path}`);
   return r.json();
 }
