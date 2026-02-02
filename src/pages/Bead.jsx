@@ -1,5 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import Pagination from "../components/Pagination.jsx";
 import { withBasePath } from "../utils/paths.js";
+import { getRarityTextClass } from "../utils/weaponUi.js";
 
 function TrashIcon({ className = "w-4 h-4" }) {
   return (
@@ -27,15 +29,11 @@ function Chip({ active, color, text, onClick }) {
   );
 }
 
-function WeaponRow({ w, traits, selected }) {
+function WeaponRow({ w, traits }) {
   const t1 = traits[w.traits.cat1]?.name || w.traits.cat1;
   const t2 = traits[w.traits.cat2]?.name || w.traits.cat2;
   const t3 = traits[w.traits.cat3]?.name || w.traits.cat3;
-
-  const tags = [];
-  if (selected.cat1.size) tags.push(`基础：${t1}`);
-  if (selected.cat2.size) tags.push(`附加：${t2}`);
-  if (selected.cat3.size) tags.push(`技能：${t3}`);
+  const tags = [t1, t2, t3];
 
   return (
     <div className="card p-3 flex items-center gap-3">
@@ -48,10 +46,8 @@ function WeaponRow({ w, traits, selected }) {
         loading="lazy"
       />
       <div className="min-w-0 flex-1">
-        <div className="font-bold truncate">{w.name}</div>
-        <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
-          {w.rarity}★ · {w.type || "未知"} · {tags.join(" ｜ ")}
-        </div>
+        <div className={`font-bold weapon-name ${getRarityTextClass(w.rarity)}`}>{w.name}</div>
+        <div className="text-xs text-zinc-500 dark:text-zinc-400">{tags.join(" · ")}</div>
       </div>
     </div>
   );
@@ -74,6 +70,7 @@ export default function Bead({ data }) {
   const [sel1, setSel1] = useState([]);
   const [sel2, setSel2] = useState([]);
   const [sel3, setSel3] = useState([]);
+  const [page, setPage] = useState(1);
 
   const selected = useMemo(() => ({
     cat1: new Set(sel1),
@@ -96,6 +93,15 @@ export default function Bead({ data }) {
     list.sort((a, b) => b.rarity - a.rarity || a.name.localeCompare(b.name));
     return list;
   }, [weapons, selected]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [sel1, sel2, sel3]);
+
+  const pageSize = 12;
+  const totalPages = Math.max(1, Math.ceil(matchedWeapons.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pagedWeapons = matchedWeapons.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -136,9 +142,12 @@ export default function Bead({ data }) {
             没有符合条件的武器。
           </div>
         ) : (
-          matchedWeapons.map((w) => (
-            <WeaponRow key={w.id} w={w} traits={traits} selected={selected} />
-          ))
+          <>
+            {pagedWeapons.map((w) => (
+              <WeaponRow key={w.id} w={w} traits={traits} />
+            ))}
+            <Pagination page={safePage} totalPages={totalPages} onChange={setPage} />
+          </>
         )}
       </div>
     </div>
