@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { withBasePath } from "../utils/paths.js";
 
 function TrashIcon({ className = "w-4 h-4" }) {
   return (
@@ -39,11 +40,12 @@ function WeaponRow({ w, traits, selected }) {
   return (
     <div className="card p-3 flex items-center gap-3">
       <img
-        src={w.image || ""}
+        src={withBasePath(w.image)}
         onError={(e) => {
           e.currentTarget.style.display = "none";
         }}
         className="w-12 h-12 rounded-xl object-cover bg-zinc-200 dark:bg-zinc-800 flex-shrink-0"
+        loading="lazy"
       />
       <div className="min-w-0 flex-1">
         <div className="font-bold truncate">{w.name}</div>
@@ -60,7 +62,6 @@ export default function Bead({ data }) {
   const traits = data.traits;
   const categories = data.categories;
 
-  // 通过 id 前缀归类（c1_/c2_/c3_）
   const catItems = useMemo(() => {
     const all = Object.values(traits);
     return {
@@ -92,14 +93,13 @@ export default function Bead({ data }) {
       return true;
     });
 
-    // 星级高优先，其次名称
     list.sort((a, b) => b.rarity - a.rarity || a.name.localeCompare(b.name));
     return list;
   }, [weapons, selected]);
 
   return (
-    <div className="grid grid-cols-12 gap-4">
-      <div className="col-span-4 space-y-4">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="lg:col-span-4 space-y-4">
         <CategoryBlock
           title={categories.cat1?.name || "第一大类"}
           items={catItems.cat1}
@@ -123,8 +123,8 @@ export default function Bead({ data }) {
         />
       </div>
 
-      <div className="col-span-8 space-y-3">
-        <div className="card p-4">
+      <div className="lg:col-span-8 space-y-3">
+        <div className="card p-5">
           <div className="font-black text-lg">这件基质给谁用</div>
           <div className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
             每个类别可选一个或多个词条；下方会列出符合条件的武器。
