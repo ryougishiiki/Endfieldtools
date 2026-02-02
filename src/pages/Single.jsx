@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { getSingle } from "../api.js";
+import Pagination from "../components/Pagination.jsx";
 import { withBasePath } from "../utils/paths.js";
+import { getRarityTextClass } from "../utils/weaponUi.js";
 
 function TrashIcon({ className = "w-4 h-4" }) {
   return (
@@ -38,9 +40,11 @@ function WeaponTile({ w, selected, onClick }) {
           loading="lazy"
         />
         <div className="min-w-0">
-          <div className="font-bold truncate">{w.name}</div>
-          <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
-            {w.rarity}★ · {w.type || "未知"}
+          <div className={`font-bold weapon-name ${getRarityTextClass(w.rarity)}`}>
+            {w.name}
+          </div>
+          <div className="text-xs text-zinc-500 dark:text-zinc-400">
+            {w.type || "未知"}
           </div>
         </div>
       </div>
@@ -64,22 +68,13 @@ function getTraitName(traits, id) {
   return traits[id]?.name || id;
 }
 
-function WeaponCard({ w, traits, mainWeapon, otherMode }) {
+function WeaponCard({ w, traits }) {
   const baseName = getTraitName(traits, w.traits.cat1);
+  const cat2Name = getTraitName(traits, w.traits.cat2);
+  const cat3Name = getTraitName(traits, w.traits.cat3);
 
-  let otherName = "";
-  if (mainWeapon && otherMode === "cat2") {
-    otherName = w.traits.cat2 === mainWeapon.traits.cat2 ? getTraitName(traits, mainWeapon.traits.cat2) : "";
-  } else if (mainWeapon && otherMode === "cat3") {
-    otherName = w.traits.cat3 === mainWeapon.traits.cat3 ? getTraitName(traits, mainWeapon.traits.cat3) : "";
-  } else if (mainWeapon && otherMode === "none") {
-    const m2 = w.traits.cat2 === mainWeapon.traits.cat2 ? getTraitName(traits, mainWeapon.traits.cat2) : "";
-    const m3 = w.traits.cat3 === mainWeapon.traits.cat3 ? getTraitName(traits, mainWeapon.traits.cat3) : "";
-    otherName = m2 && m3 ? `${m2}/${m3}` : m2 || m3 || "";
-  }
-
-  const parts = [`${w.rarity}★`, baseName, otherName].filter((x) => x !== undefined);
-  const smallText = parts.join("|");
+  const parts = [baseName, cat2Name, cat3Name].filter(Boolean);
+  const smallText = parts.join(" · ");
 
   return (
     <div className="card p-3 flex items-center gap-3">
@@ -92,10 +87,8 @@ function WeaponCard({ w, traits, mainWeapon, otherMode }) {
         loading="lazy"
       />
       <div className="min-w-0">
-        <div className="font-bold truncate">{w.name}</div>
-        <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
-          {smallText}
-        </div>
+        <div className={`font-bold weapon-name ${getRarityTextClass(w.rarity)}`}>{w.name}</div>
+        <div className="text-xs text-zinc-500 dark:text-zinc-400">{smallText}</div>
       </div>
     </div>
   );
@@ -113,6 +106,8 @@ export default function Single({ data }) {
   const [selected, setSelected] = useState(Object.keys(weapons)[0] || "");
   const [loading, setLoading] = useState(false);
   const [resp, setResp] = useState(null);
+  const [poolPage, setPoolPage] = useState(1);
+  const [resultPage, setResultPage] = useState(1);
 
   const [cat1Selected, setCat1Selected] = useState([]);
 
@@ -141,6 +136,10 @@ export default function Single({ data }) {
       return true;
     });
   }, [weapons, q, rarityFilter, typeFilter]);
+
+  useEffect(() => {
+    setPoolPage(1);
+  }, [q, rarityFilter, typeFilter]);
 
   function pickWeapon(id) {
     setSelected(id);
@@ -275,6 +274,23 @@ export default function Single({ data }) {
     return blocks;
   }, [resp, locations, weapons, cat1Selected, otherMode, selectedCat2, selectedCat3, traits, selected]);
 
+  useEffect(() => {
+    setResultPage(1);
+  }, [resp, cat1Selected, otherMode, selectedCat2, selectedCat3]);
+
+  const poolPageSize = 24;
+  const poolTotalPages = Math.max(1, Math.ceil(pool.length / poolPageSize));
+  const safePoolPage = Math.min(poolPage, poolTotalPages);
+  const pagedPool = pool.slice((safePoolPage - 1) * poolPageSize, safePoolPage * poolPageSize);
+
+  const resultPageSize = 6;
+  const resultTotalPages = Math.max(1, Math.ceil(view.length / resultPageSize));
+  const safeResultPage = Math.min(resultPage, resultTotalPages);
+  const pagedView = view.slice(
+    (safeResultPage - 1) * resultPageSize,
+    safeResultPage * resultPageSize
+  );
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <div className="lg:col-span-4 card p-5 space-y-4">
@@ -328,8 +344,8 @@ export default function Single({ data }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 max-h-[360px] overflow-auto pr-1">
-          {pool.map((w) => (
+        <div className="grid grid-cols-2 gap-3 pr-1">
+          {pagedPool.map((w) => (
             <WeaponTile
               key={w.id}
               w={w}
@@ -338,6 +354,7 @@ export default function Single({ data }) {
             />
           ))}
         </div>
+        <Pagination page={safePoolPage} totalPages={poolTotalPages} onChange={setPoolPage} />
 
         <button className="btn w-full" onClick={run} disabled={loading || !selected}>
           {loading ? "计算中…" : "计算"}
@@ -444,11 +461,11 @@ export default function Single({ data }) {
           </div>
         )}
 
-        {view.map((block) => (
-          <div key={block.loc_id} className="card p-4">
-            <div className="flex items-center justify-between mb-3 gap-4">
+        {pagedView.map((block) => (
+          <details key={block.loc_id} className="card p-4" open>
+            <summary className="details-summary flex items-center justify-between gap-4 cursor-pointer">
               <div className="min-w-0">
-                <div className="font-black text-lg truncate">
+                <div className="font-black text-lg weapon-name">
                   {block.locName}
                   <span className="text-sm font-normal text-zinc-500 dark:text-zinc-400">
                     {" "}
@@ -459,21 +476,26 @@ export default function Single({ data }) {
               <div className="text-sm text-zinc-500 dark:text-zinc-400 flex-shrink-0">
                 按地区分类，按星级分类
               </div>
-            </div>
+            </summary>
 
-            <div className="grid grid-cols-3 gap-3">
-              <RarityCol title="6★" items={block.r6} traits={traits} mainWeapon={selectedWeapon} otherMode={otherMode} />
-              <RarityCol title="5★" items={block.r5} traits={traits} mainWeapon={selectedWeapon} otherMode={otherMode} />
-              <RarityCol title="4★" items={block.r4} traits={traits} mainWeapon={selectedWeapon} otherMode={otherMode} />
+            <div className="grid grid-cols-3 gap-3 mt-3">
+              <RarityCol title="6★" items={block.r6} traits={traits} />
+              <RarityCol title="5★" items={block.r5} traits={traits} />
+              <RarityCol title="4★" items={block.r4} traits={traits} />
             </div>
-          </div>
+          </details>
         ))}
+        <Pagination
+          page={safeResultPage}
+          totalPages={resultTotalPages}
+          onChange={setResultPage}
+        />
       </div>
     </div>
   );
 }
 
-function RarityCol({ title, items, traits, mainWeapon, otherMode }) {
+function RarityCol({ title, items, traits }) {
   return (
     <div className="rounded-2xl border border-zinc-200/80 bg-white/60 p-3 dark:border-zinc-800/80 dark:bg-zinc-950/30">
       <div className="font-bold mb-2 text-sm text-zinc-600 dark:text-zinc-300">{title}</div>
@@ -482,7 +504,7 @@ function RarityCol({ title, items, traits, mainWeapon, otherMode }) {
       ) : (
         <div className="space-y-2">
           {items.map((w) => (
-            <WeaponCard key={w.id} w={w} traits={traits} mainWeapon={mainWeapon} otherMode={otherMode} />
+            <WeaponCard key={w.id} w={w} traits={traits} />
           ))}
         </div>
       )}

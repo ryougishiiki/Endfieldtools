@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { getMulti } from "../api.js";
+import Pagination from "../components/Pagination.jsx";
 import { withBasePath } from "../utils/paths.js";
+import { getRarityTextClass } from "../utils/weaponUi.js";
 
 function TrashIcon({ className = "w-4 h-4" }) {
   return (
@@ -38,10 +40,10 @@ function WeaponTile({ w, selected, onClick }) {
           loading="lazy"
         />
         <div className="min-w-0">
-          <div className="font-bold truncate">{w.name}</div>
-          <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
-            {w.rarity}★ · {w.type || "未知"}
+          <div className={`font-bold weapon-name ${getRarityTextClass(w.rarity)}`}>
+            {w.name}
           </div>
+          <div className="text-xs text-zinc-500 dark:text-zinc-400">{w.type || "未知"}</div>
         </div>
       </div>
     </div>
@@ -59,8 +61,7 @@ function SelectedChip({ w, onRemove }) {
         className="w-6 h-6 rounded-lg object-cover bg-zinc-200 dark:bg-zinc-800"
         loading="lazy"
       />
-      <span className="font-bold">{w.name}</span>
-      <span className="text-xs text-zinc-500 dark:text-zinc-400">{w.rarity}★</span>
+      <span className={`font-bold weapon-name ${getRarityTextClass(w.rarity)}`}>{w.name}</span>
       <button
         className="btn2 px-2 py-1"
         onClick={onRemove}
@@ -83,6 +84,8 @@ export default function Multi({ data, gotoSingle }) {
   const [picked, setPicked] = useState([]);
   const [resp, setResp] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [poolPage, setPoolPage] = useState(1);
+  const [resultPage, setResultPage] = useState(1);
 
   const [rarityFilter, setRarityFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -109,6 +112,10 @@ export default function Multi({ data, gotoSingle }) {
       return true;
     });
   }, [weapons, q, rarityFilter, typeFilter]);
+
+  useEffect(() => {
+    setPoolPage(1);
+  }, [q, rarityFilter, typeFilter]);
 
   function toggle(id) {
     setPicked((prev) =>
@@ -161,6 +168,29 @@ export default function Multi({ data, gotoSingle }) {
       (a, b) => b.matched.length - a.matched.length || b.score - a.score
     );
   }, [resp, locations, traits, categories]);
+
+  useEffect(() => {
+    setResultPage(1);
+  }, [resp, picked]);
+
+  const baseTraits = useMemo(() => {
+    return Object.values(traits)
+      .filter((t) => t.id.startsWith("c1_"))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [traits]);
+
+  const poolPageSize = 24;
+  const poolTotalPages = Math.max(1, Math.ceil(pool.length / poolPageSize));
+  const safePoolPage = Math.min(poolPage, poolTotalPages);
+  const pagedPool = pool.slice((safePoolPage - 1) * poolPageSize, safePoolPage * poolPageSize);
+
+  const resultPageSize = 6;
+  const resultTotalPages = Math.max(1, Math.ceil(view.length / resultPageSize));
+  const safeResultPage = Math.min(resultPage, resultTotalPages);
+  const pagedView = view.slice(
+    (safeResultPage - 1) * resultPageSize,
+    safeResultPage * resultPageSize
+  );
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -234,8 +264,8 @@ export default function Multi({ data, gotoSingle }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 max-h-[560px] overflow-auto pr-1">
-          {pool.map((w) => (
+        <div className="grid grid-cols-2 gap-3 pr-1">
+          {pagedPool.map((w) => (
             <WeaponTile
               key={w.id}
               w={w}
@@ -244,6 +274,7 @@ export default function Multi({ data, gotoSingle }) {
             />
           ))}
         </div>
+        <Pagination page={safePoolPage} totalPages={poolTotalPages} onChange={setPoolPage} />
 
         <button className="btn w-full" onClick={run} disabled={loading || picked.length === 0}>
           {loading ? "检索中…" : "搜索（查共同刷取）"}
@@ -275,53 +306,121 @@ export default function Multi({ data, gotoSingle }) {
           </div>
         )}
 
-        {view.map((b, idx) => (
-          <div key={idx} className="card p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <div className="font-black text-lg truncate">{b.locName}</div>
-                <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                  共享：{b.fixedCatName} · {b.fixedTraitName}
-                </div>
-              </div>
-              <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                满足 {b.matched.length} 把
-              </div>
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              {b.matched.map((id) => {
-                const w = weapons[id];
-                if (!w) return null;
-                const cat1Name = traits[w.traits.cat1]?.name || w.traits.cat1;
-                return (
-                  <div
-                    key={id}
-                    className="rounded-2xl border border-zinc-200 bg-white/40 p-3 dark:border-zinc-800 dark:bg-zinc-950/30"
-                  >
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={withBasePath(w.image)}
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                        className="w-12 h-12 rounded-xl object-cover bg-zinc-200 dark:bg-zinc-800 flex-shrink-0"
-                        loading="lazy"
-                      />
-                      <div className="min-w-0">
-                        <div className="font-bold truncate">{w.name}</div>
-                        <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
-                          {w.rarity}★ · {w.type || "未知"} · 基础：{cat1Name}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+        {pagedView.map((b, idx) => (
+          <MultiResultBlock
+            key={`${b.locName}-${b.fixedTrait}-${idx}`}
+            block={b}
+            weapons={weapons}
+            traits={traits}
+            baseTraits={baseTraits}
+          />
         ))}
+        <Pagination
+          page={safeResultPage}
+          totalPages={resultTotalPages}
+          onChange={setResultPage}
+        />
       </div>
     </div>
+  );
+}
+
+function MultiResultBlock({ block, weapons, traits, baseTraits }) {
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
+
+  useEffect(() => {
+    setPage(1);
+  }, [block.matched]);
+
+  const totalPages = Math.max(1, Math.ceil(block.matched.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pagedMatched = block.matched.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  return (
+    <details className="card p-4" open>
+      <summary className="details-summary flex items-center justify-between gap-4 cursor-pointer">
+        <div className="min-w-0">
+          <div className="font-black text-lg weapon-name">{block.locName}</div>
+          <div className="text-sm text-zinc-500 dark:text-zinc-400 flex flex-wrap items-center gap-2 mt-1">
+            <span>共享：</span>
+            <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+              {block.fixedCatName}
+            </span>
+            <span className="text-zinc-400">·</span>
+            <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+              {block.fixedTraitName}
+            </span>
+          </div>
+        </div>
+        <div className="text-sm text-zinc-500 dark:text-zinc-400">
+          满足 {block.matched.length} 把
+        </div>
+      </summary>
+
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        {pagedMatched.map((id) => {
+          const w = weapons[id];
+          if (!w) return null;
+          const cat2Name = traits[w.traits.cat2]?.name || w.traits.cat2;
+          const cat3Name = traits[w.traits.cat3]?.name || w.traits.cat3;
+          return (
+            <div
+              key={id}
+              className="rounded-2xl border border-zinc-200 bg-white/40 p-3 dark:border-zinc-800 dark:bg-zinc-950/30"
+            >
+              <div className="flex items-center gap-3">
+                <img
+                  src={withBasePath(w.image)}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                  className="w-12 h-12 rounded-xl object-cover bg-zinc-200 dark:bg-zinc-800 flex-shrink-0"
+                  loading="lazy"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className={`font-bold weapon-name ${getRarityTextClass(w.rarity)}`}>
+                    {w.name}
+                  </div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                    策略：
+                    <span className="inline-flex flex-wrap items-center gap-2 ml-2">
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                        {cat2Name}
+                      </span>
+                      <span className="text-zinc-400">+</span>
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                        {cat3Name}
+                      </span>
+                      <span className="text-zinc-400">+</span>
+                      <span className="inline-flex flex-wrap gap-1">
+                        {baseTraits.map((t) => {
+                          const matched = w.traits.cat1 === t.id;
+                          return (
+                            <span
+                              key={t.id}
+                              className={
+                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] " +
+                                (matched
+                                  ? "border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-200"
+                                  : "border-red-400 text-red-500 bg-red-50 dark:bg-red-900/20")
+                              }
+                            >
+                              <span className="font-bold">{matched ? "✓" : "✕"}</span>
+                              {t.name}
+                            </span>
+                          );
+                        })}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <Pagination page={safePage} totalPages={totalPages} onChange={setPage} className="mt-3" />
+    </details>
   );
 }
